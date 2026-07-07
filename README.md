@@ -1,7 +1,7 @@
 # Folk-Art-Conditioned Indian Packaging Generation
 
 Code and evaluation artefacts for the MSc dissertation:
-**"Injecting Regional Cultural Aesthetics into Product Packaging via Reference-Conditioned Diffusion Models: A Comparative Study of SDXL and FLUX with LoRA and IP-Adapter Conditioning"**
+**"Injecting Regional Cultural Aesthetics into Product Pack-aging via Reference-Conditioned Diffusion Models"**
 
 University of Stirling, MSc Artificial Intelligence, 2026.
 
