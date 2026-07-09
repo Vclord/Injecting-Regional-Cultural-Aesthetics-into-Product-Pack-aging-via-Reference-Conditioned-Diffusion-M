@@ -1,0 +1,204 @@
+Prompt for 02_spike_ip_adapter:
+Write a Jupyter Notebook (in Markdown format) for my SDXL + IP-Adapter experimental spike. The goal is to test if IP-Adapter can inject Indian folk-art aesthetics (Tanjore, Kalighat, Madhubani) onto snack packaging generations.
+
+I need the notebook broken down into the following 6 specific cells:
+
+Cell 1: Setup & Parameters
+Define an experimental matrix: 3 text prompts (snack packaging), 3 reference images (the traditions), 3 IP-Adapter scales (0.4, 0.6, 0.8), and 2 seeds. Set resolution to 768x768. Crucial: I am running this on a 6GB VRAM RTX 3060, so you must initialize PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:512,expandable_segments:True". Include logic to validate that the reference image paths exist.
+
+Cell 2: Model Loading
+Load stabilityai/stable-diffusion-xl-base-1.0 in FP16, followed by the h94/IP-Adapter (ip-adapter_sdxl.bin). To fit this in 6GB VRAM, explicitly enable model_cpu_offload(), vae_slicing(), and vae_tiling(). Important: Ensure the IP-Adapter's image_encoder is explicitly pushed to "cuda" to avoid device mismatch errors during offloading.
+
+Cell 3: Smoke Test
+Run a single Madhubani generation at scale 0.6 to compile CUDA kernels and verify the pipeline. Display it using matplotlib.
+
+Cell 4: Full Grid Execution
+Write a resumable loop to generate the full matrix (54 conditioned images) plus 6 baseline images (scale 0.0, adapter ignored). Skip images that already exist on disk. For total reproducibility, save a sibling .json file for every .png containing the exact generation parameters (seed, scale, prompt, time elapsed).
+
+Cell 5: Contact Sheet
+Use PIL to build a unified spatial grid (contact sheet) of all generated images, scaled to 256px thumbnails. Create rows based on the experimental variables and draw text labels on the left side of the grid so I can visually review the ablation matrix.
+
+Cell 6: Evaluation Scaffold
+Generate a pandas DataFrame and export it to a CSV for my double-blind rubric scoring. Create one row per image. Include the filename, tradition, and scale. Add empty columns for session1 and session2 across four axes: text_legibility, regional_appropriateness, packaging_plausibility, and visual_quality.
+
+
+
+Prompt for 03_spike_ip_adapter_v2:
+Write a Jupyter Notebook (in Markdown format) for v2 of my SDXL + IP-Adapter experimental spike. I am replacing the original scale-sweep with a direct comparison between "regular" IP-Adapter and "IP-Adapter-Plus" to test if the Plus variant successfully decouples regional folk-art style from content.
+
+I need this structured into 6 specific cells:
+
+Cell 1: Setup & Parameters
+Define the experimental matrix: 3 text prompts, 3 style references (Tanjore, Kalighat, Madhubani), 2 scales (0.5, 0.7), and 2 seeds (42, 1337). Define a dictionary for the two variants: regular (using ip-adapter_sdxl.bin) and plus (using ip-adapter-plus_sdxl_vit-h.safetensors). Keep the PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:512" environment variable, as I am still constrained by a 6GB VRAM RTX 3060.
+
+Cell 2: Pipeline Management Functions
+To prevent VRAM fragmentation and state-leak when swapping models, write a build_pipeline(variant_name) function and a cleanup_pipeline(pipe) function (using gc.collect() and torch.cuda.empty_cache()).
+Crucial Architecture Note: The plus variant requires a separate CLIPVisionModelWithProjection (ViT-H) image encoder. Program the build_pipeline function to conditionally load this specific encoder only when building the plus variant, while applying standard memory optimizations (cpu_offload, vae_slicing, vae_tiling) to the base SDXL model.
+
+Cell 3: Plus Smoke Test
+Build the plus pipeline and run a single test generation (Madhubani, scale 0.7) to ensure the ViT-H encoder fits in VRAM alongside SDXL before launching the full matrix.
+
+Cell 4: Phased Generation Loop
+Write a resumable loop that saves a sibling .json configuration file for every .png. Execute this in strict phases to minimize model swapping:
+
+Run all plus tasks.
+
+Call the cleanup function and swap to the regular pipeline.
+
+Run all regular tasks.
+
+Run the baselines (scale 0.0).
+
+Cell 5: Comparison Grid
+Build a contact sheet using PIL. For each prompt, place the regular generation and the plus generation side-by-side so I can directly compare the style vs. content entanglement. Stack these vertically by tradition, scale, and seed.
+
+Cell 6: Evaluation Scaffold
+Generate the pandas DataFrame for the double-blind rubric scoring. Export to a CSV (spike_v2_scores.csv). It must include the new variant column alongside the standard session 1 and session 2 axes (text legibility, regional appropriateness, packaging plausibility, visual quality).
+
+
+Prompt for 04_train_sdxl_lora_colab:
+Write a Jupyter Notebook (in Markdown format) designed to run on Google Colab Pro (A100) to train an SDXL LoRA on my dataset of Indian snack packaging.
+
+I will be using the official HuggingFace diffusers script (train_text_to_image_lora_sdxl.py pinned to v0.30.0) via accelerate. I need you to write the notebook cells to handle the environment setup, data pipeline, and execution.
+
+Please structure the notebook with the following specific requirements:
+
+Dependency Pinning: Colab's default environment has conflicts. Write a cell that force-reinstalls and pins Pillow>=10.2,<11.0 and numpy<2.0, alongside the standard diffusers, peft, and accelerate libraries.
+
+Data Pipeline (I/O Optimization): Mount Google Drive, but do not train directly from it, as it will bottleneck the A100. Write a script to copy all .png files from my Drive folder to Colab's local SSD.
+
+Metadata Generation: Read my train.csv and generate a metadata.jsonl file in the local SSD folder. I am using a uniform captioning strategy. Every image must be captioned exactly as: "a photograph of ipsnackpkg, an Indian snack packet, product photography on a white background".
+
+Hyperparameters & Accelerate: Configure accelerate for a single GPU using bf16. Set up the training command with the following hyperparameters: Rank 16, Alpha 16, Learning Rate 1e-4 (cosine scheduler, 100 warmup steps), 2000 max steps, batch size 1, and gradient accumulation 4. Enable gradient checkpointing and 8-bit Adam.
+
+Tracking & Export: Configure Weights & Biases for logging. After training, copy the final .safetensors weight file back to Google Drive along with a timestamped .json file containing all the hyperparameters for my methodology records.
+
+Inline Validation: Write a final cell that flushes the VRAM (gc.collect(), torch.cuda.empty_cache()), loads the base SDXL model with my newly trained LoRA, and generates a 2x2 grid of test images using the ipsnackpkg trigger token so I can verify the weights immediately.
+
+
+Prompt for 05_spike_lora_plus:
+Write a Jupyter Notebook (in Markdown format) for spike v3 of my dissertation. I need to test if pairing my trained packaging-domain SDXL LoRA with IP-Adapter-Plus successfully restricts the folk-art style to a snack packet, solving the issue from v2 where IP-Adapter-Plus alone produced flat paintings.
+
+Structure the notebook into the following 5 cells:
+
+Cell 1: Setup & Dynamic Loading
+Define the experimental variables: 3 traditions, 2 seeds, IP scale fixed at 0.7, LoRA scale at 1.0, and resolution at 768. I need two distinct prompts: a base prompt, and a LoRA prompt that injects my trigger token (ipsnackpkg). Include Python pathlib logic to automatically scan my outputs/lora_checkpoints directory and select the most recently trained .safetensors file. Retain the 6GB VRAM PyTorch memory configurations.
+
+Cell 2: Single-Pipeline Initialization
+To prevent OOM crashes, build the pipeline exactly once. Load the ViT-H image encoder, SDXL (with cpu_offload, vae_slicing, and vae_tiling), and IP-Adapter-Plus. Do not load the LoRA weights yet. We will manage them dynamically in the execution loop.
+
+Cell 3: Two-Phase Execution Loop
+Write a generation loop that outputs images and sibling .json config files.
+
+Phase 1 (Control): Generate the images using the base prompt and IP-Adapter-Plus.
+
+Phase 2 (Test): Call pipe.load_lora_weights(). Generate the images using the LoRA-specific prompt. Crucial: You must explicitly pass the LoRA scale into the generation call using cross_attention_kwargs={"scale": 1.0} so it correctly scales the newly loaded weights.
+
+Cell 4: Side-by-Side Comparison Grid
+Write a PIL script to generate a contact sheet. For every tradition and seed combination, place the Phase 1 (Plus Only) image immediately to the left of the Phase 2 (LoRA + Plus) image so I can visually evaluate the architectural intervention.
+
+Cell 5: Rubric Scaffold
+Generate the pandas DataFrame and export it to spike_v3_scores.csv. Include the 4 evaluation axes for session 1 and session 2, pulling the condition (plus_only vs lora_plus), tradition, and seed from the generated filenames.
+
+
+Prompt for 06_spike_lora_plus:
+Write a Jupyter Notebook (in Markdown format) for Spikes v4 and v5 of my dissertation. I am adding a Canny ControlNet to my existing pipeline (SDXL + LoRA + IP-Adapter-Plus) to force the generations to respect the physical silhouette of a real snack pouch (8904004400694.png).
+
+Structure the notebook with the following specific cells:
+
+Cell 1: Config > Set IP scale to 0.7 and LoRA scale to 1.0. Define the ControlNet scales for v4 as [0.4, 0.5]. Ensure paths and typical configuration arrays (traditions, seeds) are set.
+
+Cell 2: Smart Canny Edge Map
+Use cv2 to generate the Canny edge map from my control image. Crucial: The center of my control image has a transparent window showing the actual potato chips, which will create "edge spaghetti" and ruin the ControlNet. Write a function that calculates the median color of the surrounding foil and paints a filled rectangle over the chips window (approx coordinates x: 0.1 to 0.92, y: 0.36 to 0.76) before running Canny. Plot the original and the edge map side-by-side using matplotlib.
+
+Cell 3: The 4-Part Pipeline Loading
+Load StableDiffusionXLControlNetPipeline alongside the ControlNetModel, the CLIPVisionModelWithProjection (for Plus), and the LoRA weights. To fit this monster in my 6GB VRAM, enforce enable_model_cpu_offload(), enable_vae_slicing(), and enable_vae_tiling().
+
+Cell 4: OOM-Safe Smoke Test & Mini-Sweep
+Since this pipeline pushes my hardware to the absolute limit, wrap the first generation in a try/except block catching torch.cuda.OutOfMemoryError. Try generating at 768x768; if it OOMs, flush the cache and gracefully fallback to 640x640. Follow this with a mini ControlNet scale sweep [0.3, 0.5, 0.7] on a single seed to verify the pipeline.
+
+Cell 5, 6, 7: Spike v4 Execution & Grids
+Run the full resumable generation loop for v4. Create a 3-way PIL comparison contact sheet comparing the v3 outputs (no ControlNet) alongside v4 at CN=0.4 and CN=0.5. Generate the pandas CSV scaffold for rubric scoring.
+
+Cell 8, 9, 10: Spike v5 (LoRA Ablation)
+Append Spike v5 to the bottom of the notebook. Lock the ControlNet scale to 0.4 and the IP scale to 0.7, but now sweep the LoRA scales across [0.5, 0.7, 1.0]. Write a generation loop for these 18 images, build a PIL comparison grid, and generate a separate spike_v5_lora_scores.csv scaffold.
+
+
+Prompt for 07_train_flux_lora_colab:
+Write a Jupyter Notebook (in Markdown format) for Google Colab Pro (A100) to answer my first Research Question: comparing a FLUX.1-schnell packaging-domain LoRA against my existing SDXL baseline.
+
+I need the notebook structured with the following specific engineering and experimental requirements:
+
+Cell 1-2: Dependency Management & I/O
+Colab's default environment conflicts with FLUX. Write a strict dependency pinning cell: downgrade Pillow>=10.2,<11.0 and numpy<2.0, then install diffusers==0.32.0, transformers==4.45.2, and peft==0.13.2. Mount Google Drive, but copy the 270 training images to the local SSD to avoid I/O bottlenecks. Generate a metadata.jsonl using the exact same caption template and trigger token (ipsnackpkg) as my SDXL run to ensure strict comparability.
+
+Cell 3-8: FLUX LoRA Training
+Download the official train_dreambooth_lora_flux.py script from HuggingFace. Configure accelerate for a single GPU. Setup the training parameters to mirror my SDXL run (Rank 16, Alpha 16, Resolution 1024, batch size 1, grad accumulation 4, bf16). Crucial Adjustment: Because FLUX is a much larger DiT architecture, lower the learning rate to 5e-5 (cosine, 100 warmup steps) for 2000 steps. Save the final .safetensors to Drive.
+
+Cell 9-10: VRAM-Safe Inference & The Scale Diagnostic
+Write the inference loop. Architectural note: FLUX.1-schnell is distilled, so hardcode inference to 4 steps and 0.0 guidance scale.
+Methodological Pivot: I've found that FLUX LoRAs over-assert at a standard scale of 1.0. Write a diagnostic cell to test adapter scales (0.3, 0.5, 1.0). Then, write the final generation loop to run the FLUX LoRA at scale=0.5. Use strict gc.collect() and torch.cuda.empty_cache() calls to swap pipelines safely.
+
+Cell 11-12: The 4-Way Comparison Grid & Rubric Scaffold
+Write a PIL script to generate a contact sheet comparing 4 columns: SDXL Baseline, SDXL + LoRA (scale 1.0), FLUX Baseline, and FLUX + LoRA (scale 0.5). Iterate this across my test prompts and seeds. Finally, generate a pandas DataFrame for my double-blind rubric scoring, ensuring you append backbone (sdxl/flux), condition (baseline/lora), and lora_scale columns.
+
+
+Prompt for q_metrics_sdxl:
+Write a short Python reporting script using pandas to aggregate and format the results from my quantitative_metrics.csv file.
+
+I need the script to do two specific things for my dissertation write-up:
+
+Global Aggregation Table: Group the entire dataset by spike, lora_scale, ip_scale, and cn_scale. Crucial: You must set dropna=False in the groupby function; my earlier experimental spikes (like v2) do not have LoRA or ControlNet scales, and I cannot have those rows dropped. Calculate the mean for the four core metrics (clip_image_mean, clip_text_sim, dinov2_style_mean, lpips_mean). Print this as a cleanly aligned console table, formatting missing values as "N/A".
+
+Operating Point Breakdown: At the bottom of the output, isolate my chosen final operating point (Spike v4 where cn_scale == 0.4). Group this specific subset by tradition and print the mean metrics so I can analyze how the different folk-art styles performed at that specific structural strictness.
+
+
+Prompt for spike_02_rubric:
+Write a Jupyter Notebook cell (in Markdown format) using pandas and scikit-learn to analyze the inter-rater reliability (IRR) of my double-blind rubric scoring for Spike v2.
+
+Load the data from evaluation/spike_v2_scores.csv (which contains ~78 scored rows). I need you to do two specific things:
+
+Statistical Aggregation: For all four evaluation axes (text_legibility, regional_appropriateness, packaging_plausibility, visual_quality), calculate Cohen's Kappa. Also calculate the mean score for Session 1, the mean for Session 2, the Delta Mean, the percentage of exact score matches, and the percentage of scores within ±1 point (since my rubric is on a 0-3 scale). Print this as a cleanly aligned console table.
+
+Contextual Interpretation: Below the table, print the standard Landis & Koch (1977) interpretation key for Cohen's Kappa so I can easily reference it while writing my results chapter.
+
+High-Disagreement Extraction: To help me write my discussion chapter, I need to perform qualitative error analysis. Write logic to filter the dataframe for any image where the absolute difference between the Session 1 and Session 2 scores (on any axis) is strictly greater than 1. Export these outlier rows to evaluation/spike_v2_high_disagreement.csv and print a console note reminding me to examine them for rubric ambiguity.
+
+
+Prompt for test_1:
+Write a Jupyter Notebook (in Markdown format) for "Test 1" of my dissertation, which will serve as the absolute baseline (pure text-to-image prompting with no adapters or LoRAs).
+
+I need the notebook structured with the following specific cells:
+
+Cell 1 & 2: Environment Verification
+Before running any inference, write a cell using the sys module to print the current Python version and executable path to ensure I am running in the correct sdxl-env virtual environment. Follow this with a cell that force-installs PyTorch and Torchvision specifically compiled for CUDA 12.1 (--index-url https://download.pytorch.org/whl/cu121), as this is strictly required for my local hardware setup.
+
+Cell 3: Baseline Grid Visualization
+Assuming the inference loop has populated a results list with images, write a matplotlib.pyplot script to generate a dynamic comparison grid. The grid should iterate over my target states (prompts.keys()) as rows and my inference seeds as columns. Turn off the axes, label each subplot with the state and seed, and save the final tight-layout figure to ../outputs/figures/spike_grid_prompt_only.png with a DPI of 120.
+
+Cell 4: Baseline Rubric Scaffold
+Write a pandas script to generate a CSV for my human-in-the-loop scoring. Iterate through the states and seeds. Hardcode the method column as "prompt_only" and ip_scale as None. Create empty columns for my specific baseline rubric axes: text_quality (where 0=gibberish and 3=accurate), aesthetic_match (where 0=wrong and 3=convincing), and brand_identity. Note in the comments that brand_identity is largely N/A for this prompt-only phase, but keep it for structural consistency with later spikes.
+
+
+Prompt for v4_cohen:
+Write a Python script using pandas and sklearn to calculate the inter-rater reliability (IRR) for my ControlNet experiment (spike_v4_scores.csv).
+
+I need the script to perform two specific levels of analysis:
+
+Axis-Level Analysis: For my four rubric axes (text_legibility, regional_appropriateness, packaging_plausibility, visual_quality), calculate Cohen's Kappa using linear weights. Alongside Kappa, calculate the Mean for Session 1, Mean for Session 2, the Delta Mean, the percentage of exact score matches, and the percentage of scores within ±1 point. Print this as a cleanly aligned table.
+
+Image-Level Total Disagreement: I need to understand the absolute variance on a per-image basis. Write logic to sum the absolute differences between Session 1 and Session 2 across all four axes combined for each row. Print the Mean and Max total disagreement, as well as the absolute count and percentage of images that achieved perfect zero-disagreement across the entire rubric.
+
+Make sure to coerce errors to NaN and drop nulls when calculating the Kappa scores so the script doesn't crash on empty CSV cells.
+
+
+Prompt for v5_cohen:
+Write a Python script using pandas and scikit-learn to calculate the inter-rater reliability (IRR) for my LoRA ablation experiment (spike_v5_lora_scores.csv).
+
+I need the script to perform two levels of analysis:
+
+Axis-Level Analysis: Calculate Cohen's Kappa (using linear weights) for my four rubric axes (text_legibility, regional_appropriateness, packaging_plausibility, visual_quality). Alongside Kappa, calculate the Mean for Session 1, Mean for Session 2, the Delta Mean, % exact match, and % within ±1 point. Print this as a cleanly aligned table.
+
+Crucial Error Handling: You must write defensive code for the Kappa calculation. First, check if a column is entirely empty (no overlapping scored rows) and skip it gracefully. Second, wrap the cohen_kappa_score call in a try/except block to catch the exception that sklearn throws when there is zero variance in the data, falling back to NaN instead of crashing the script.
+
+Image-Level Total Disagreement: Write logic to sum the absolute differences between Session 1 and Session 2 across all four axes combined for each row. Print the Mean and Max total disagreement, as well as the absolute count and percentage of images that achieved perfect zero-disagreement across the entire rubric.
