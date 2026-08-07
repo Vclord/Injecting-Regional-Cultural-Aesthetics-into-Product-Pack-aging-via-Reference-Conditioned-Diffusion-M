@@ -1,0 +1,5 @@
+﻿f79fa2828ab4ec8840192e38ee44e8695b21e9de
+7D03D195EC821585DBBBE24C919FCDCDD51899F431FA9FC2670E85F633DB33A6 
+Vivek Chandra <vivek00089@students.stir.ac.uk>
+2026-05-27 11:53:22 +0100
+Pre-commit evaluation rubric before any output generation
