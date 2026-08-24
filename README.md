@@ -69,7 +69,7 @@ The FLUX training pipeline required specific pinned versions to work in the diff
 
 If you use this work or its evaluation artefacts, please cite:
 
-> Chandra, V. (2026). *Injecting Regional Cultural Aesthetics into Product Pack-aging via Reference-Conditioned Diffusion Models.* MSc Dissertation, University of Stirling.
+> Chandra, V. (2026). *Injecting Regional Cultural Aesthetics into Product Packaging via Reference-Conditioned Diffusion Models.* MSc Dissertation, University of Stirling.
 
 ## Licence
 
