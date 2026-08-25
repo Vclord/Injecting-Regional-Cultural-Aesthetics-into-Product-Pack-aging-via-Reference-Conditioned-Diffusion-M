@@ -177,8 +177,8 @@ University of Stirling Generative AI Policy for the dissertation.
 - **How AI-assisted code is marked:** Code that was generated or substantially
   assisted by AI is marked with an inline comment at the top of the relevant
   block or file, in the form
-  `# prompt to llm: <brief description>`. (For the .py python scripts)
-  `# Prompts for notebooks`. (A text file with all the prompts for the .ipynb jupyter notebooks)
+  `# prompt to llm: <brief description>` (For the .py python scripts) &
+  `# Prompts for notebooks` (A text file with all the prompts for the .ipynb jupyter notebooks).
 
 ---
 
