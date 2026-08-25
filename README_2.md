@@ -173,7 +173,7 @@ third parties beyond the components listed above.
 Generative AI tools were used during this project in accordance with the
 University of Stirling Generative AI Policy for the dissertation.
 
-- **Tools used:** : e.g. Claude (Anthropic); Gemini (Google), ChatGPT (OpenAI).
+- **Tools used:** : Claude (Anthropic); Gemini (Google); ChatGPT (OpenAI).
 - **How AI-assisted code is marked:** Code that was generated or substantially
   assisted by AI is marked with an inline comment at the top of the relevant
   block or file, in the form
